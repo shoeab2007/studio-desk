@@ -1,0 +1,14 @@
+const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');
+const code=fs.readFileSync(__dirname+'/Code.gs','utf8');
+const ctx={Session:{getActiveUser:()=>({getEmail:()=> 'owner@example.test'})},DriveApp:{getFileById:()=>({getOwner:()=>({getEmail:()=> 'owner@example.test'})})}};vm.createContext(ctx);vm.runInContext(code,ctx);
+const record={id:'test-1',client:'Test',project:'Poster',contact:'',source:'',service:'Event Creative Pack',stage:'Lead',value:10000,paid:5000,deadline:'',due:'',next:'Get brief',approver:'',hours:0,revisions:0,notes:'',checks:[0]};
+ctx.validRecords_([record]);ctx.ownerOnly_();
+assert.throws(()=>ctx.validRecords_([record,record]),/duplicate/);
+assert.throws(()=>ctx.validRecords_([{...record,id:"x');alert(1)"}]),/Invalid/);
+assert.throws(()=>ctx.validRecords_([{...record,paid:10001}]),/exceeds/);
+assert.throws(()=>ctx.validRecords_([{...record,hours:NaN}]),/Invalid/);
+assert.throws(()=>ctx.validRecords_([{...record,checks:[11]}]),/checkpoints/);
+ctx.Session.getActiveUser=()=>({getEmail:()=> 'other@example.test'});assert.throws(()=>ctx.ownerOnly_(),/Only the spreadsheet owner/);
+ctx.Session.getActiveUser=()=>({getEmail:()=> ''});assert.throws(()=>ctx.ownerOnly_(),/Only the spreadsheet owner/);
+const html=fs.readFileSync(__dirname+'/Index.html','utf8');for(const m of html.matchAll(/<script>([\s\S]*?)<\/script>/g))new Function(m[1]);
+console.log('Passed: validation, duplicate IDs, unsafe IDs, invalid amounts, checkpoints, owner-only access, missing identity, frontend syntax.');
